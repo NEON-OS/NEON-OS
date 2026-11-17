@@ -1,8 +1,8 @@
-name: Build NEON OS
+name: Build NEON OS ISO
 
 on:
   push:
-    branches: [main]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
@@ -14,104 +14,37 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Checkout
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Install build tools
         run: |
           sudo apt-get update
           sudo apt-get install -y \
-            live-build \
-            debootstrap \
-            debian-archive-keyring \
-            squashfs-tools \
-            xorriso \
-            grub-pc-bin \
-            grub-efi-amd64-bin \
-            mtools \
-            dosfstools \
-            file
+            live-build debootstrap squashfs-tools xorriso \
+            grub-pc-bin grub-efi-amd64-bin \
+            mtools dosfstools syslinux-common isolinux
 
-      - name: Remove old configuration
-        run: |
-          sudo rm -rf auto config .build chroot binary
-          sudo rm -f config* binary*
-
-      - name: Configure Debian
-        run: |
-          sudo lb config noauto \
-            --mode debian \
-            --distribution bookworm \
-            --architectures amd64 \
-            --linux-packages linux-image \
-            --linux-flavours amd64 \
-            --binary-image iso-hybrid \
-            --archive-areas "main contrib non-free non-free-firmware" \
-            --mirror-bootstrap https://deb.debian.org/debian/ \
-            --mirror-chroot https://deb.debian.org/debian/ \
-            --mirror-binary https://deb.debian.org/debian/ \
-            --security false \
-            --bootloader grub \
-            --apt-indices false \
-            --firmware-binary true \
-            --firmware-chroot false
-
-      - name: Create NEON OS package list
-        run: |
-          sudo mkdir -p config/package-lists
-          sudo tee config/package-lists/neon.list.chroot > /dev/null <<'EOF'
-          live-boot
-          live-config
-          linux-image-amd64
-          systemd-sysv
-          xfce4
-          xfce4-terminal
-          lightdm
-          network-manager
-          network-manager-gnome
-          sudo
-          firefox-esr
-          dbus-x11
-          fonts-dejavu
-          EOF
-
-      - name: Add correct Debian security repository
-        run: |
-          sudo mkdir -p config/includes.chroot/etc/apt/sources.list.d
-          sudo tee config/includes.chroot/etc/apt/sources.list.d/neon-security.list > /dev/null <<'EOF'
-          deb https://security.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware
-          EOF
-
-      - name: Check configuration
-        run: |
-          echo "===== ARCHITECTURE ====="
-          dpkg --print-architecture
-          echo "===== PACKAGE LIST ====="
-          cat config/package-lists/neon.list.chroot
-          echo "===== SECURITY REPOSITORY ====="
-          cat config/includes.chroot/etc/apt/sources.list.d/neon-security.list
+      - name: Configure NEON OS
+        run: sudo lb config
 
       - name: Build ISO
         run: |
-          sudo lb build
+          set -o pipefail
+          sudo lb build 2>&1 | tee build.log
 
-      - name: Verify ISO
+      - name: Collect ISO
         run: |
-          ISO=$(find . -maxdepth 1 -type f -name "*.iso" | head -n 1)
-          if [ -z "$ISO" ]; then
-            echo "ERROR: No ISO was generated"
-            exit 1
-          fi
-          echo "===== ISO DETAILS ====="
-          ls -lh "$ISO"
-          file "$ISO"
-          echo "===== ISO SIZE ====="
-          du -h "$ISO"
+          mkdir -p dist
+          sudo find . -maxdepth 1 -type f -name '*.iso' \
+            -exec cp {} dist/ \;
+          sudo chown -R "$USER":"$USER" dist
+          test -n "$(find dist -name '*.iso' -print -quit)"
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
-          name: NEON-OS-1.0.0
-          path: "*.iso"
+          name: neon-os-iso
+          path: dist/*.iso
           if-no-files-found: error
           retention-days: 14
