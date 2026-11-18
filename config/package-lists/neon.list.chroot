@@ -1,0 +1,13 @@
+live-boot
+live-config
+linux-image-amd64
+systemd-sysv
+xfce4
+xfce4-terminal
+lightdm
+network-manager
+network-manager-gnome
+sudo
+firefox-esr
+dbus-x11
+fonts-dejavu
