@@ -2,7 +2,7 @@
 #!/bin/sh
 set -e
 
-lb config \
+lb config noauto \
   --distribution bookworm \
   --architectures amd64 \
   --binary-image iso-hybrid \
