@@ -29,17 +29,21 @@ jobs:
 
       - name: Diagnose package configuration
         run: |
-          echo "===== LIVE-BUILD CONFIGURATION ====="
-          sudo lb config --dump || true
+          echo "===== BUILD CONFIG ====="
+          if [ -f .build/config ]; then
+            sudo cat .build/config
+          else
+            echo ".build/config not found"
+          fi
 
-          echo "===== PACKAGE LIST FILES ====="
-          find config/package-lists -maxdepth 2 -type f -print -exec cat {} \;
+          echo "===== LIVE BUILD DEFAULTS ====="
+          sudo grep -Rni "linux-generic" /usr/share/live/build /etc/live 2>/dev/null || true
 
-          echo "===== GENERATED PACKAGE LISTS ====="
-          sudo find .build -maxdepth 4 -type f -print 2>/dev/null || true
+          echo "===== ALL PACKAGE LISTS ====="
+          sudo find config -type f -print -exec cat {} \;
 
-          echo "===== SEARCH FOR UBUNTU KERNEL ====="
-          sudo grep -Rni "linux-generic" config .build chroot 2>/dev/null || true
+          echo "===== SEARCH ENTIRE WORKSPACE ====="
+          sudo grep -Rni --exclude-dir=.git "linux-generic" . 2>/dev/null || true
 
       - name: Build ISO
         run: |
