@@ -3,12 +3,13 @@ set -e
 
 lb config noauto \
   --ignore-system-defaults \
-  --bootstrap-keyring debian-archive-keyring \
   --distribution bookworm \
   --architectures amd64 \
   --binary-image iso-hybrid \
   --debian-installer live \
   --archive-areas "main contrib non-free non-free-firmware" \
+  --bootstrap-keyring debian-archive-keyring \
+  --keyring-packages debian-archive-keyring \
   --mirror-bootstrap http://deb.debian.org/debian/ \
   --mirror-chroot http://deb.debian.org/debian/ \
   --mirror-binary http://deb.debian.org/debian/ \
