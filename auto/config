@@ -18,4 +18,4 @@ lb config noauto \
   --bootloader grub \
   --apt-indices false \
   --firmware-binary true \
-  --firmware-chroot true
+  --firmware-chroot false
