@@ -8,6 +8,9 @@ lb config noauto \
   --binary-image iso-hybrid \
   --debian-installer live \
   --archive-areas "main contrib non-free non-free-firmware" \
+  --mirror-bootstrap http://deb.debian.org/debian/ \
+  --mirror-chroot http://deb.debian.org/debian/ \
+  --mirror-binary http://deb.debian.org/debian/ \
   --bootloader grub \
   --firmware-binary true \
   --firmware-chroot true
