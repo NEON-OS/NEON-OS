@@ -8,8 +8,6 @@ lb config noauto \
   --binary-image iso-hybrid \
   --debian-installer live \
   --archive-areas "main contrib non-free non-free-firmware" \
-  --bootloaders grub-efi \
   --bootloader grub \
   --firmware-binary true \
   --firmware-chroot true
-  
