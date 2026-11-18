@@ -1,4 +1,3 @@
-
 name: Build NEON OS ISO
 
 on:
@@ -27,6 +26,20 @@ jobs:
         run: |
           sudo chmod +x auto/config
           sudo ./auto/config
+
+      - name: Diagnose package configuration
+        run: |
+          echo "===== LIVE-BUILD CONFIGURATION ====="
+          sudo lb config --dump || true
+
+          echo "===== PACKAGE LIST FILES ====="
+          find config/package-lists -maxdepth 2 -type f -print -exec cat {} \;
+
+          echo "===== GENERATED PACKAGE LISTS ====="
+          sudo find .build -maxdepth 4 -type f -print 2>/dev/null || true
+
+          echo "===== SEARCH FOR UBUNTU KERNEL ====="
+          sudo grep -Rni "linux-generic" config .build chroot 2>/dev/null || true
 
       - name: Build ISO
         run: |
