@@ -1,4 +1,4 @@
-name: Build NEON OS ISO
+name: Build NEON OS
 
 on:
   push:
@@ -17,42 +17,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install build tools
+      - name: Install mkosi
         run: |
           sudo apt-get update
-          sudo apt-get install -y live-build debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools
+          sudo apt-get install -y \
+            mkosi \
+            systemd-container \
+            debootstrap \
+            qemu-utils \
+            xorriso
 
-      - name: Configure NEON OS
+      - name: Check mkosi
         run: |
-          sudo chmod +x auto/config
-          sudo ./auto/config
+          mkosi --version
+          mkosi summary
 
-      - name: Diagnose package configuration
+      - name: Build NEON OS
         run: |
-          echo "===== BUILD CONFIG ====="
-          if [ -f .build/config ]; then
-            sudo cat .build/config
-          else
-            echo ".build/config not found"
-          fi
+          sudo mkosi build
 
-          echo "===== LIVE BUILD DEFAULTS ====="
-          sudo grep -Rni "linux-generic" /usr/share/live/build /etc/live 2>/dev/null || true
-
-          echo "===== ALL PACKAGE LISTS ====="
-          sudo find config -type f -print -exec cat {} \;
-
-          echo "===== SEARCH ENTIRE WORKSPACE ====="
-          sudo grep -Rni --exclude-dir=.git "linux-generic" . 2>/dev/null || true
-
-      - name: Build ISO
+      - name: Show build output
         run: |
-          sudo lb build
+          ls -lah mkosi.output/
 
-      - name: Upload ISO
+      - name: Upload NEON OS image
         uses: actions/upload-artifact@v4
         with:
-          name: NEON-OS-ISO
-          path: "*.iso"
+          name: NEON-OS-1.0.0
+          path: mkosi.output/*.raw
           if-no-files-found: error
-          
