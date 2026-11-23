@@ -1,9 +1,9 @@
-
 name: Build NEON OS ISO
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -11,11 +11,12 @@ permissions:
 
 jobs:
   build:
+    name: Build NEON OS
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install build tools
@@ -32,18 +33,23 @@ jobs:
             dosfstools \
             file
 
-      - name: Remove old build system
+      - name: Remove old configuration
         run: |
+          sudo lb clean --purge || true
           sudo rm -rf auto config .build chroot binary
           sudo rm -f config* binary*
 
       - name: Configure Debian Bookworm
         run: |
           sudo lb config noauto \
+            --mode debian \
             --ignore-system-defaults \
             --distribution bookworm \
             --architectures amd64 \
+            --linux-packages linux-image \
+            --linux-flavours amd64 \
             --binary-image iso-hybrid \
+            --debian-installer live \
             --archive-areas "main contrib non-free non-free-firmware" \
             --bootstrap-keyring debian-archive-keyring \
             --keyring-packages debian-archive-keyring \
@@ -57,9 +63,10 @@ jobs:
             --firmware-binary true \
             --firmware-chroot false
 
-      - name: Create NEON OS packages
+      - name: Create NEON OS package list
         run: |
           sudo mkdir -p config/package-lists
+
           sudo tee config/package-lists/neon.list.chroot > /dev/null <<'EOF'
           live-boot
           live-config
@@ -76,27 +83,41 @@ jobs:
           fonts-dejavu
           EOF
 
-      - name: Verify configuration
+      - name: Verify Debian configuration
         run: |
-          echo "Searching all build files for linux-generic..."
-          if sudo grep -Rni "linux-generic" . \
-            --exclude-dir=.git 2>/dev/null; then
-            echo "ERROR: Found linux-generic in build files."
+          echo "Checking Debian build settings..."
+
+          grep -h "LB_MODE=" config/* || true
+          grep -h "LB_LINUX_PACKAGES=" config/* || true
+          grep -h "LB_LINUX_FLAVOURS=" config/* || true
+
+          echo "Checking package list..."
+          cat config/package-lists/neon.list.chroot
+
+          if grep -qx "linux-generic" config/package-lists/neon.list.chroot; then
+            echo "ERROR: Ubuntu kernel package found."
             exit 1
           fi
-          echo "No linux-generic references found."
-          cat config/package-lists/neon.list.chroot
 
       - name: Build NEON OS ISO
         run: |
-          sudo lb build noauto
+          sudo lb build
 
       - name: Verify ISO
         run: |
-          ls -lh *.iso
-          file *.iso
+          echo "Checking ISO output..."
+          find . -maxdepth 1 -type f -name "*.iso" -exec ls -lh {} \;
 
-      - name: Upload ISO
+          ISO_COUNT=$(find . -maxdepth 1 -type f -name "*.iso" | wc -l)
+
+          if [ "$ISO_COUNT" -eq 0 ]; then
+            echo "ERROR: No ISO was generated."
+            exit 1
+          fi
+
+          find . -maxdepth 1 -type f -name "*.iso" -exec file {} \;
+
+      - name: Upload NEON OS ISO
         uses: actions/upload-artifact@v4
         with:
           name: NEON-OS-ISO
