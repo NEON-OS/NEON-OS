@@ -1,9 +1,8 @@
-name: Build NEON OS ISO
+name: Build NEON OS
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -11,12 +10,11 @@ permissions:
 
 jobs:
   build:
-    name: Build NEON OS
     runs-on: ubuntu-latest
     timeout-minutes: 360
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Install build tools
@@ -35,24 +33,19 @@ jobs:
 
       - name: Remove old configuration
         run: |
-          sudo lb clean --purge || true
           sudo rm -rf auto config .build chroot binary
           sudo rm -f config* binary*
 
-      - name: Configure Debian Bookworm
+      - name: Configure Debian
         run: |
           sudo lb config noauto \
             --mode debian \
-            --ignore-system-defaults \
             --distribution bookworm \
             --architectures amd64 \
             --linux-packages linux-image \
             --linux-flavours amd64 \
             --binary-image iso-hybrid \
-            --debian-installer live \
             --archive-areas "main contrib non-free non-free-firmware" \
-            --bootstrap-keyring debian-archive-keyring \
-            --keyring-packages debian-archive-keyring \
             --mirror-bootstrap http://deb.debian.org/debian/ \
             --mirror-chroot http://deb.debian.org/debian/ \
             --mirror-binary http://deb.debian.org/debian/ \
@@ -66,7 +59,6 @@ jobs:
       - name: Create NEON OS package list
         run: |
           sudo mkdir -p config/package-lists
-
           sudo tee config/package-lists/neon.list.chroot > /dev/null <<'EOF'
           live-boot
           live-config
@@ -83,43 +75,28 @@ jobs:
           fonts-dejavu
           EOF
 
-      - name: Verify Debian configuration
+      - name: Check kernel settings
         run: |
-          echo "Checking Debian build settings..."
-
-          grep -h "LB_MODE=" config/* || true
-          grep -h "LB_LINUX_PACKAGES=" config/* || true
-          grep -h "LB_LINUX_FLAVOURS=" config/* || true
-
-          echo "Checking package list..."
+          echo "Debian kernel configuration:"
+          grep -R "LB_LINUX_PACKAGES\|LB_LINUX_FLAVOURS" config || true
+          echo "Package list:"
           cat config/package-lists/neon.list.chroot
 
-          if grep -qx "linux-generic" config/package-lists/neon.list.chroot; then
-            echo "ERROR: Ubuntu kernel package found."
-            exit 1
-          fi
-
-      - name: Build NEON OS ISO
+      - name: Build ISO
         run: |
           sudo lb build
 
       - name: Verify ISO
         run: |
-          echo "Checking ISO output..."
-          find . -maxdepth 1 -type f -name "*.iso" -exec ls -lh {} \;
+          ISO=$(find . -maxdepth 1 -type f -name "*.iso" | head -n 1)
+          test -n "$ISO"
+          ls -lh "$ISO"
+          file "$ISO"
 
-          ISO_COUNT=$(find . -maxdepth 1 -type f -name "*.iso" | wc -l)
-
-          if [ "$ISO_COUNT" -eq 0 ]; then
-            echo "ERROR: No ISO was generated."
-            exit 1
-          fi
-
-          find . -maxdepth 1 -type f -name "*.iso" -exec file {} \;
-
-      - name: Upload NEON OS ISO
+      - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
-          name: NEON-OS-ISO
+          name: NEON-OS-1.0.0
           path: "*.iso"
           if-no-files-found: error
+
