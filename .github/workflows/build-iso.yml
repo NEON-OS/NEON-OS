@@ -23,6 +23,7 @@ jobs:
           sudo apt-get install -y \
             live-build \
             debootstrap \
+            debian-archive-keyring \
             squashfs-tools \
             xorriso \
             grub-pc-bin \
@@ -46,11 +47,11 @@ jobs:
             --linux-flavours amd64 \
             --binary-image iso-hybrid \
             --archive-areas "main contrib non-free non-free-firmware" \
-            --mirror-bootstrap http://deb.debian.org/debian/ \
-            --mirror-chroot http://deb.debian.org/debian/ \
-            --mirror-binary http://deb.debian.org/debian/ \
-            --mirror-chroot-security http://security.debian.org/debian-security/ \
-            --mirror-binary-security http://security.debian.org/debian-security/ \
+            --mirror-bootstrap https://deb.debian.org/debian/ \
+            --mirror-chroot https://deb.debian.org/debian/ \
+            --mirror-binary https://deb.debian.org/debian/ \
+            --mirror-chroot-security https://security.debian.org/debian-security/ \
+            --mirror-binary-security https://security.debian.org/debian-security/ \
             --bootloader grub \
             --apt-indices false \
             --firmware-binary true \
@@ -75,11 +76,13 @@ jobs:
           fonts-dejavu
           EOF
 
-      - name: Check kernel settings
+      - name: Check configuration
         run: |
-          echo "Debian kernel configuration:"
-          grep -R "LB_LINUX_PACKAGES\|LB_LINUX_FLAVOURS" config || true
-          echo "Package list:"
+          echo "===== ARCHITECTURE ====="
+          dpkg --print-architecture
+          echo "===== SECURITY MIRROR ====="
+          grep -R "security.debian.org" config || true
+          echo "===== PACKAGE LIST ====="
           cat config/package-lists/neon.list.chroot
 
       - name: Build ISO
@@ -89,9 +92,15 @@ jobs:
       - name: Verify ISO
         run: |
           ISO=$(find . -maxdepth 1 -type f -name "*.iso" | head -n 1)
-          test -n "$ISO"
+          if [ -z "$ISO" ]; then
+            echo "ERROR: No ISO was generated"
+            exit 1
+          fi
+          echo "===== ISO DETAILS ====="
           ls -lh "$ISO"
           file "$ISO"
+          echo "===== ISO SIZE ====="
+          du -h "$ISO"
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
@@ -99,4 +108,4 @@ jobs:
           name: NEON-OS-1.0.0
           path: "*.iso"
           if-no-files-found: error
-
+          retention-days: 14
