@@ -1,9 +1,9 @@
-
 name: Build NEON OS ISO
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 permissions:
@@ -15,27 +15,36 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install Debian Live build tools
+      - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y live-build debootstrap squashfs-tools xorriso grub-pc-bin grub-efi-amd64-bin mtools dosfstools
+          sudo apt-get install -y \
+            live-build \
+            debootstrap \
+            squashfs-tools \
+            xorriso \
+            grub-pc-bin \
+            grub-efi-amd64-bin \
+            mtools \
+            dosfstools \
+            file
 
-      - name: Clean old build configuration
+      - name: Clean old configuration
         run: |
-          sudo rm -rf config
-          sudo rm -rf .build chroot binary
+          sudo lb clean --purge || true
+          sudo rm -rf config .build chroot binary
+          sudo rm -f config* binary*
 
       - name: Configure Debian Live
         run: |
-          lb config \
+          sudo lb config \
             --ignore-system-defaults \
             --distribution bookworm \
             --architectures amd64 \
             --binary-image iso-hybrid \
-            --debian-installer live \
             --archive-areas "main contrib non-free non-free-firmware" \
             --bootstrap-keyring debian-archive-keyring \
             --keyring-packages debian-archive-keyring \
@@ -49,10 +58,11 @@ jobs:
             --firmware-binary true \
             --firmware-chroot false
 
-      - name: Add NEON OS packages
+      - name: Create NEON OS package list
         run: |
-          mkdir -p config/package-lists
-          cat > config/package-lists/neon.list.chroot << 'EOF'
+          sudo mkdir -p config/package-lists
+
+          sudo tee config/package-lists/neon.list.chroot > /dev/null <<'EOF'
           live-boot
           live-config
           linux-image-amd64
@@ -68,12 +78,24 @@ jobs:
           fonts-dejavu
           EOF
 
+      - name: Check package configuration
+        run: |
+          echo "Checking for unwanted Ubuntu kernel packages..."
+          if grep -Rni "linux-generic" config .build 2>/dev/null; then
+            echo "ERROR: linux-generic was found."
+            exit 1
+          fi
+
+          echo "NEON OS package list:"
+          cat config/package-lists/neon.list.chroot
+
       - name: Build NEON OS ISO
         run: |
           sudo lb build
 
       - name: Verify ISO
         run: |
+          echo "Checking generated ISO..."
           ls -lh *.iso
           file *.iso
 
