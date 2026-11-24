@@ -1,50 +1,58 @@
 name: Build NEON OS ISO
 
 on:
-  push:
-    branches: ["main"]
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 permissions:
   contents: read
 
 jobs:
   build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 360
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
 
     steps:
-      - name: Checkout source
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install build tools
+      - name: Install live-build
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            live-build debootstrap squashfs-tools xorriso \
-            grub-pc-bin grub-efi-amd64-bin \
-            mtools dosfstools syslinux-common isolinux
+          sudo apt-get install -y live-build debootstrap squashfs-tools xorriso \
+            isolinux syslinux-common grub-pc-bin grub-efi-amd64-bin \
+            dosfstools mtools
 
       - name: Configure NEON OS
-        run: sudo lb config
+        run: |
+          sudo lb config \
+            --distribution trixie \
+            --architectures amd64 \
+            --binary-images iso-hybrid \
+            --archive-areas "main contrib non-free non-free-firmware" \
+            --iso-application "NEON OS" \
+            --iso-publisher "NEON OS Project" \
+            --iso-volume "NEON_OS" \
+            --image-name neon-os \
+            --firmware-binary true \
+            --firmware-chroot true
 
       - name: Build ISO
         run: |
-          set -o pipefail
-          sudo lb build 2>&1 | tee build.log
+          sudo lb build
 
       - name: Collect ISO
         run: |
-          mkdir -p dist
-          sudo find . -maxdepth 1 -type f -name '*.iso' \
-            -exec cp {} dist/ \;
-          sudo chown -R "$USER":"$USER" dist
-          test -n "$(find dist -name '*.iso' -print -quit)"
+          mkdir -p output
+          find . -maxdepth 1 -type f -name '*.iso' -exec cp {} output/ \;
+          test -n "$(find output -name '*.iso' -print -quit)"
 
-      - name: Upload ISO
+      - name: Upload NEON OS ISO
         uses: actions/upload-artifact@v4
         with:
-          name: neon-os-iso
-          path: dist/*.iso
+          name: NEON-OS-ISO
+          path: output/*.iso
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
