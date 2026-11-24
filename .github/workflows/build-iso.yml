@@ -35,7 +35,6 @@ jobs:
             --iso-application "NEON OS" \
             --iso-publisher "NEON OS Project" \
             --iso-volume "NEON_OS" \
-            --image-name neon-os \
             --firmware-binary true \
             --firmware-chroot true
 
