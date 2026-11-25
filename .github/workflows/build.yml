@@ -23,6 +23,10 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y live-build debootstrap debian-archive-keyring squashfs-tools xorriso
 
+      - name: Fix live-build Contents URL
+        run: |
+          sudo sed -i 's|${LB_PARENT_MIRROR_CHROOT}/dists/${LB_PARENT_DISTRIBUTION}/Contents-${LB_ARCHITECTURES}.gz|${LB_PARENT_MIRROR_CHROOT}/dists/${LB_PARENT_DISTRIBUTION}/main/Contents-${LB_ARCHITECTURES}.gz|g; s|${LB_MIRROR_CHROOT}/dists/${LB_DISTRIBUTION}/Contents-${LB_ARCHITECTURES}.gz|${LB_MIRROR_CHROOT}/dists/${LB_DISTRIBUTION}/main/Contents-${LB_ARCHITECTURES}.gz|g' /usr/lib/live/build/lb_chroot_linux-image
+
       - name: Configure NEON OS
         run: |
           sudo lb config \
